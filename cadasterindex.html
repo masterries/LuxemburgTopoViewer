@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Minimal Cadastral Viewer</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <style>
+    html, body {
+      margin: 0; 
+      padding: 0; 
+      height: 100%;
+    }
+    #map {
+      width: 100%; 
+      height: 100%;
+    }
+    #controlPanel {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255,255,255,0.8);
+      padding: 10px;
+      z-index: 1000;
+      border-radius: 4px;
+      font-family: sans-serif;
+    }
+  </style>
+</head>
+<body>
+  <div id="map"></div>
+  <div id="controlPanel">
+    <div>
+      <label for="transparencySlider">Cadastral Layer Transparency:</label><br>
+      <input type="range" id="transparencySlider" min="0" max="1" step="0.01" value="1">
+    </div>
+  </div>
+  
+  <!-- Load the Geoportail V4 API -->
+  <script src="https://apiv4.geoportail.lu/apiv4loader.js" type="text/javascript"></script>
+  <script>
+    // Create a map with no background layer, only cadastral data
+    var map = new lux.Map({
+      target: 'map',
+      bgLayer: 'blank', // No background layer
+      layers: ['parcels', 'parcels_labels'], // Only cadastral layers
+      zoom: 18,
+      position: [76771, 72205]
+    });
+    
+    // Function to update the opacity of the cadastral layer
+    function updateCadastralOpacity(opacity) {
+      map.getLayers().forEach(function(layer) {
+        if (layer.get('name') === 'parcels') {
+          layer.setOpacity(opacity);
+          console.log("Cadastral layer opacity set to", opacity);
+        }
+      });
+    }
+    
+    // Listen for changes on the cadastral transparency slider
+    document.getElementById('transparencySlider').addEventListener('input', function() {
+      var opacity = parseFloat(this.value);
+      updateCadastralOpacity(opacity);
+    });
+  </script>
+</body>
+</html>

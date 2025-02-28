@@ -1,0 +1,254 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Geoportail Luxembourg Search</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 20px;
+        }
+        #container {
+            display: flex;
+            flex-direction: column;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        #search-container {
+            margin-bottom: 20px;
+        }
+        #map {
+            height: 500px;
+            width: 100%;
+            border: 1px solid #ccc;
+        }
+        #results {
+            margin-top: 20px;
+            border: 1px solid #ccc;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .search-item {
+            padding: 8px;
+            margin: 5px 0;
+            background-color: #f5f5f5;
+            cursor: pointer;
+            border-radius: 4px;
+        }
+        .search-item:hover {
+            background-color: #e0e0e0;
+        }
+        input, button {
+            padding: 8px;
+            margin-right: 10px;
+        }
+        button {
+            cursor: pointer;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+    </style>
+</head>
+<body>
+    <div id="container">
+        <h1>Geoportail Luxembourg Search</h1>
+        
+        <div id="search-container">
+            <input type="text" id="search-input" placeholder="Enter search query (e.g., 1142 1339)" value="1142 1339">
+            <input type="number" id="limit-input" placeholder="Result limit" min="1" max="20" value="8">
+            <button id="search-button">Search</button>
+        </div>
+
+        <div id="map"></div>
+        
+        <div id="results-container">
+            <h2>Search Results</h2>
+            <div id="results"></div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize map
+        const map = L.map('map').setView([49.8, 6.15], 10);
+        
+        // Add OpenStreetMap base layer
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+        }).addTo(map);
+
+        // Global variables to store layers
+        let featureLayers = [];
+        
+        // Function to clear all feature layers
+        function clearFeatureLayers() {
+            featureLayers.forEach(layer => map.removeLayer(layer));
+            featureLayers = [];
+        }
+
+        // Function to perform the search
+        async function performSearch() {
+            const searchQuery = document.getElementById('search-input').value.trim();
+            const limit = document.getElementById('limit-input').value;
+            
+            if (!searchQuery) {
+                alert('Please enter a search query');
+                return;
+            }
+
+            try {
+                // Clear previous results
+                clearFeatureLayers();
+                document.getElementById('results').innerHTML = '';
+                
+                // Construct the API URL
+                const apiUrl = `https://map.geoportail.lu/fulltextsearch?query=${encodeURIComponent(searchQuery)}&limit=${limit}`;
+                
+                // Fetch the data
+                const response = await fetch(apiUrl);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                
+                const data = await response.json();
+                
+                // Process the results
+                if (data.features && data.features.length > 0) {
+                    displayResults(data);
+                } else {
+                    document.getElementById('results').innerHTML = '<p>No results found</p>';
+                }
+            } catch (error) {
+                console.error('Error fetching data:', error);
+                document.getElementById('results').innerHTML = `<p>Error: ${error.message}</p>`;
+            }
+        }
+
+        // Function to display the results
+        function displayResults(data) {
+            const resultsContainer = document.getElementById('results');
+            const bounds = L.latLngBounds();
+            
+            // Create a results list
+            data.features.forEach((feature, index) => {
+                // Create a result item in the list
+                const resultItem = document.createElement('div');
+                resultItem.className = 'search-item';
+                resultItem.innerHTML = `
+                    <strong>${feature.properties.label || 'Unnamed location'}</strong>
+                    <br>Type: ${feature.properties.layer_name || 'Unknown'}
+                    <br>ID: ${feature.id || 'No ID'}
+                `;
+                
+                // Add click event to zoom to the feature
+                resultItem.addEventListener('click', () => {
+                    zoomToFeature(feature);
+                });
+                
+                resultsContainer.appendChild(resultItem);
+                
+                // Add the feature to the map
+                addFeatureToMap(feature, index);
+                
+                // Extend the bounds to include this feature
+                if (feature.bbox) {
+                    bounds.extend([feature.bbox[1], feature.bbox[0]]);
+                    bounds.extend([feature.bbox[3], feature.bbox[2]]);
+                }
+            });
+            
+            // Fit the map to show all features
+            if (!bounds.isEmpty()) {
+                map.fitBounds(bounds);
+            }
+        }
+
+        // Function to add a feature to the map
+        function addFeatureToMap(feature, index) {
+            if (feature.geometry) {
+                let layer;
+                
+                const colors = ['#e41a1c', '#377eb8', '#4daf4a', '#984ea3', '#ff7f00', '#ffff33', '#a65628', '#f781bf'];
+                const color = colors[index % colors.length];
+                
+                switch (feature.geometry.type) {
+                    case 'Polygon':
+                        // Convert coordinates from [lng, lat] to [lat, lng] for Leaflet
+                        const coordinates = feature.geometry.coordinates[0].map(coord => [coord[1], coord[0]]);
+                        layer = L.polygon(coordinates, {
+                            color: color,
+                            weight: 2,
+                            opacity: 0.8,
+                            fillOpacity: 0.2
+                        });
+                        break;
+                    
+                    case 'Point':
+                        layer = L.circleMarker([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], {
+                            radius: 8,
+                            color: color,
+                            weight: 2,
+                            opacity: 0.8,
+                            fillOpacity: 0.4
+                        });
+                        break;
+                    
+                    // Add other geometry types as needed (LineString, etc.)
+                    default:
+                        console.log(`Unsupported geometry type: ${feature.geometry.type}`);
+                        return;
+                }
+                
+                // Add popup with information
+                layer.bindPopup(`
+                    <strong>${feature.properties.label || 'Unnamed location'}</strong><br>
+                    Type: ${feature.properties.layer_name || 'Unknown'}<br>
+                    ID: ${feature.id || 'No ID'}
+                `);
+                
+                layer.addTo(map);
+                featureLayers.push(layer);
+            }
+        }
+
+        // Function to zoom to a specific feature
+        function zoomToFeature(feature) {
+            if (feature.bbox) {
+                const bounds = L.latLngBounds(
+                    [feature.bbox[1], feature.bbox[0]],
+                    [feature.bbox[3], feature.bbox[2]]
+                );
+                map.fitBounds(bounds);
+            } else if (feature.geometry) {
+                // For point features
+                if (feature.geometry.type === 'Point') {
+                    map.setView([feature.geometry.coordinates[1], feature.geometry.coordinates[0]], 14);
+                }
+            }
+        }
+
+        // Attach event listener to the search button
+        document.getElementById('search-button').addEventListener('click', performSearch);
+        
+        // Allow pressing Enter to search
+        document.getElementById('search-input').addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                performSearch();
+            }
+        });
+
+        // Perform initial search with default values
+        window.onload = performSearch;
+    </script>
+</body>
+</html>
