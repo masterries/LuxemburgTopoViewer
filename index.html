@@ -147,14 +147,18 @@
         <div class="control-row">
           <label for="backgroundLayer">Background Map:</label>
           <select id="backgroundLayer">
-            <option value="ortho_latest">Satellite</option>
+            <option value="streets_jpeg">Streets</option>
           </select>
         </div>
         
         <div class="control-row">
           <label for="transparencySlider">Parcels Transparency:</label>
-          <input type="range" id="transparencySlider" min="0" max="1" step="0.1" value="0.7">
-          <span id="transparencyValue">70%</span>
+          <input type="range" id="transparencySlider" min="0" max="1" step="0.1" value="0.5">
+          <span id="transparencyValue">50%</span>
+        </div>
+        
+        <div style="margin-top: 10px;">
+          <button id="roodtButton" style="width: 100%; padding: 8px; background: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer;">Go to Roodt (Redange)</button>
         </div>
       </div>
     </div>
@@ -162,12 +166,19 @@
     
     <script type="text/javascript">
       window.onload = function() {
-        // Create the map with the background layer "topo_bw_jpeg"
+        // Convert Roodt coordinates from DMS to decimal degrees
+        var lat = 49 + (47/60) + (42/3600);  // 49.79500
+        var lon = 5 + (49/60) + (18/3600);   // 5.82167
+        
+        // Transform from WGS84 to EPSG:3857 (Web Mercator)
+        var roodtCoords = ol.proj.transform([lon, lat], 'EPSG:4326', 'EPSG:3857');
+        
+        // Create the map with Roodt as the default location
         var luxMap = new lux.Map({
           target: 'map',
           bgLayer: 'streets_jpeg',
-          zoom: 10,
-          position: [76771, 72205] // Default position in Luxembourg
+          zoom: 17,
+          position: roodtCoords // Default position set to Roodt
         });
         
         // Since lux.Map extends an OpenLayers map, we can use the OpenLayers API directly
@@ -184,7 +195,7 @@
             },
             projection: 'EPSG:3857'
           }),
-          opacity: 0.7,
+          opacity: 0.5,
           title: "parcels"
         });
         
@@ -221,6 +232,59 @@
           document.getElementById('transparencyValue').textContent = Math.round(opacity * 100) + '%';
         });
         
+        // Function to go to Roodt location
+        function goToRoodt() {
+          // Roodt (Redange) coordinates: 49°47′42″N 05°49′18″E
+          // Convert from DMS to decimal degrees
+          var lat = 49 + (47/60) + (42/3600);  // 49.79500
+          var lon = 5 + (49/60) + (18/3600);   // 5.82167
+          
+          // Transform from WGS84 (EPSG:4326) to the map projection (EPSG:3857)
+          var roodtCoords = ol.proj.transform([lon, lat], 'EPSG:4326', 'EPSG:3857');
+          
+          // Center the map on Roodt and zoom in
+          olMap.getView().animate({
+            center: roodtCoords,
+            zoom: 17,
+            duration: 1000
+          });
+          
+          // Add a marker at Roodt location
+          highlightSource.clear();
+          var pointFeature = new ol.Feature({
+            geometry: new ol.geom.Point(roodtCoords)
+          });
+          
+          // Style with a visible pin
+          pointFeature.setStyle(new ol.style.Style({
+            image: new ol.style.Circle({
+              radius: 8,
+              fill: new ol.style.Fill({
+                color: 'red'
+              }),
+              stroke: new ol.style.Stroke({
+                color: 'white',
+                width: 2
+              })
+            })
+          }));
+          
+          highlightSource.addFeature(pointFeature);
+          
+          // Update info panel
+          document.getElementById('infoDiv').innerHTML = 
+            "<div class='infoTitle'>Location Information</div>" +
+            "<div class='featureInfo'>" +
+            "<div>Location:</div><div>Roodt (Redange)</div>" +
+            "<div>Coordinates:</div><div>49°47′42″N 05°49′18″E</div>" +
+            "<div>Decimal:</div><div>" + lat.toFixed(6) + ", " + lon.toFixed(6) + "</div>" +
+            "</div>";
+          document.getElementById('infoDiv').style.display = 'block';
+        }
+        
+        // Set up Roodt location button
+        document.getElementById('roodtButton').addEventListener('click', goToRoodt);
+        
         // Create a vector layer to highlight search results
         var highlightSource = new ol.source.Vector();
         var highlightLayer = new ol.layer.Vector({
@@ -236,6 +300,11 @@
           })
         });
         olMap.addLayer(highlightLayer);
+        
+        // Place initial marker at Roodt
+        setTimeout(function() {
+          goToRoodt();
+        }, 500);
         
         // Set up search functionality
         document.getElementById('searchButton').addEventListener('click', searchParcels);
