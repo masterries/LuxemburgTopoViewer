@@ -14,7 +14,7 @@
       #controlPanel {
         position: absolute;
         top: 10px;
-        left: 10px;
+        right: 10px; /* Von left zu right geändert */
         background: rgba(255,255,255,0.9);
         padding: 15px;
         z-index: 1000;
@@ -22,6 +22,27 @@
         font-family: Arial, sans-serif;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         width: 320px;
+        max-width: calc(100% - 40px);
+        transition: all 0.3s ease;
+      }
+      /* Minimiertes Panel für mobile Ansicht */
+      #controlPanel.minimized {
+        width: auto;
+        padding: 10px;
+      }
+      #controlPanel.minimized .panel-content {
+        display: none;
+      }
+      #togglePanel {
+        display: none;
+        position: absolute;
+        top: 5px;
+        right: 5px;
+        background: none;
+        border: none;
+        font-size: 18px;
+        cursor: pointer;
+        padding: 5px;
       }
       .search-container {
         display: flex;
@@ -96,6 +117,7 @@
         max-width: 320px;
         box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         display: none;
+        max-width: calc(100% - 40px);
       }
       .featureInfo {
         display: grid;
@@ -128,6 +150,20 @@
         0% { transform: rotate(0deg); }
         100% { transform: rotate(360deg); }
       }
+      /* Media Query für kleine Bildschirme */
+      @media (max-width: 768px) {
+        #togglePanel {
+          display: block;
+        }
+        #controlPanel {
+          width: calc(100% - 40px);
+          max-height: 50vh;
+          overflow-y: auto;
+        }
+        #infoDiv {
+          max-width: calc(100% - 40px);
+        }
+      }
     </style>
     <!-- Load the Geoportail V4 API -->
     <script src="https://apiv4.geoportail.lu/apiv4loader.js" type="text/javascript"></script>
@@ -136,30 +172,35 @@
   <body>
     <div id="map"></div>
     <div id="controlPanel">
-      <h3 class="panel-title">Luxembourg Parcel Search</h3>
-      <div class="search-container">
-        <input type="text" id="searchInput" placeholder="Enter parcel number (e.g. 1142 1339)">
-        <button id="searchButton">Search</button>
-        <div class="loader" id="searchLoader"></div>
-      </div>
-      <div id="resultsPanel"></div>
-      
-      <div class="control-group">
-        <div class="control-row">
-          <label for="backgroundLayer">Background Map:</label>
-          <select id="backgroundLayer">
-            <option value="streets_jpeg">Streets</option>
-          </select>
+      <button id="togglePanel" aria-label="Toggle panel">☰</button>
+      <div class="panel-content">
+        <h3 class="panel-title">Luxembourg Parcel Search</h3>
+        <div class="search-container">
+          <input type="text" id="searchInput" placeholder="Enter parcel number (e.g. 1142 1339)">
+          <button id="searchButton">Search</button>
+          <div class="loader" id="searchLoader"></div>
         </div>
+        <div id="resultsPanel"></div>
         
-        <div class="control-row">
-          <label for="transparencySlider">Parcels Transparency:</label>
-          <input type="range" id="transparencySlider" min="0" max="1" step="0.1" value="0.5">
-          <span id="transparencyValue">50%</span>
-        </div>
-        
-        <div style="margin-top: 10px;">
-          <button id="roodtButton" style="width: 100%; padding: 8px; background: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer;">Go to Roodt (Redange)</button>
+        <div class="control-group">
+          <div class="control-row">
+            <label for="backgroundLayer">Background Map:</label>
+            <select id="backgroundLayer">
+              <option value="streets_jpeg">Streets</option>
+              <option value="topo_bw">Topo B&W</option>
+              <option value="ortho_latest">Aerial</option>
+            </select>
+          </div>
+          
+          <div class="control-row">
+            <label for="transparencySlider">Parcels Transparency:</label>
+            <input type="range" id="transparencySlider" min="0" max="1" step="0.1" value="0.5">
+            <span id="transparencyValue">50%</span>
+          </div>
+          
+          <div style="margin-top: 10px;">
+            <button id="roodtButton" style="width: 100%; padding: 8px; background: #4285F4; color: white; border: none; border-radius: 4px; cursor: pointer;">Go to Roodt (Redange)</button>
+          </div>
         </div>
       </div>
     </div>
@@ -286,6 +327,13 @@
         
         // Set up Roodt location button
         document.getElementById('roodtButton').addEventListener('click', goToRoodt);
+        
+        // Set up panel toggle for mobile view
+        document.getElementById('togglePanel').addEventListener('click', function() {
+          var panel = document.getElementById('controlPanel');
+          panel.classList.toggle('minimized');
+          this.textContent = panel.classList.contains('minimized') ? '☰' : '✕';
+        });
         
         // Create a vector layer to highlight search results
         var highlightSource = new ol.source.Vector();
