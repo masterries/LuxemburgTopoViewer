@@ -1,0 +1,26 @@
+{
+  "name": "luxembourg-topo-viewer",
+  "version": "2.0.0",
+  "description": "Interactive viewer for Luxembourg topographic maps and cadastral parcels, built on the Geoportail.lu API.",
+  "type": "module",
+  "license": "MIT",
+  "homepage": "https://masterries.github.io/LuxemburgTopoViewer/",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc -b && vite build",
+    "preview": "vite preview",
+    "type-check": "vue-tsc -b --noEmit"
+  },
+  "dependencies": {
+    "chart.js": "^4.4.7",
+    "proj4": "^2.15.0",
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "@types/proj4": "^2.5.5",
+    "@vitejs/plugin-vue": "^5.2.1",
+    "typescript": "~5.7.3",
+    "vite": "^6.0.7",
+    "vue-tsc": "^2.2.0"
+  }
+}
